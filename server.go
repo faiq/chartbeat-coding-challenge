@@ -1,48 +1,43 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/faiq/chartbeat-coding-challenge/request"
+
+	"github.com/codegangsta/negroni"
+	"github.com/gorilla/mux"
 )
 
-type Page struct {
-	I        string `json:"i"`
-	Path     string `json:"path"`
-	Visitors int    `json:"visitors"`
+const (
+	pollInterval = 5 * time.Second // how often to poll each URL
+)
+
+func MainHandler(w http.ResponseWriter, r *http.Request) {
+	u := r.URL.Query()
+	fmt.Printf("%v", u)
+	w.Write([]byte("Gorilla!\n"))
 }
 
-// Make request to the given url
-func makeRequest(url string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	dec := json.NewDecoder(resp.Body)
-	//read open bracket
-	_, err = dec.Token()
-	if err != nil {
-		return err
-	}
-	var pageInfo Page
-	for dec.More() {
-		err := dec.Decode(&pageInfo)
-		if err != nil {
-			return err
+func Poll(updates chan<- request.Page) {
+	ticker := time.NewTicker(updateInterval)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				request.MakeRequest()
+			}
 		}
-		fmt.Printf("%v\n", pageInfo)
-	}
-	// read closing bracket
-	_, err = dec.Token()
-	if err != nil {
-		return err
-	}
-	return nil
+	}()
 }
 
 func main() {
-	err := makeRequest("http://api.chartbeat.com/live/toppages/?apikey=317a25eccba186e0f6b558f45214c0e7&host=gizmodo.com&limit=100")
-	if err != nil {
-		fmt.Printf("JUMPMANNNN SHIT BROKE")
-	}
+	router := mux.NewRouter()
+	updates := make(chan request.Page) // a channel to pass along updates to
+	router.HandleFunc("/", MainHandler)
+	n := negroni.Classic()
+	n.UseHandler(router)
+	n.Run(":3000")
 }
