@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -38,6 +39,11 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
+	outgoingJSON, err := json.Marshal(state)
+	if err != nil {
+		w.Write([]byte("Gorilla!\n"))
+	}
+	w.Write(outgoingJSON)
 }
 
 // Poll will create a new channel for processing on a given host name every Interval seconds
@@ -69,7 +75,7 @@ func HandlePage(page request.Page, host string) {
 	}
 	newPath := true // flag to determine whether or not to add a new member to the slice
 	// loop over the saved paths in our state object
-	for savedPage := range state[host] {
+	for _, savedPage := range state[host] {
 		if savedPage.Path == page.Path {
 			newPath = false
 			savedPage.PrevVisitors = savedPage.Visitors
