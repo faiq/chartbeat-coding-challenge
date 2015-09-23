@@ -53,6 +53,8 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(outgoingJSON)
 }
 
+// transform state is a function that takes the global state and host and returns the paths which have increasing
+// visitors for the host
 func TransformState(host string) ([]byte, error) {
 	mutex.Lock()
 	var pagesForHost = state[host]
