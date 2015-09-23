@@ -60,7 +60,7 @@ func TransformState(host string) ([]byte, error) {
 	returnForHost := make([]interface{}, 0) // state will keep a mapping of hosts to corresponding pageplus structs
 	for _, savedPage := range pagesForHost {
 		changed := savedPage.Visitors - savedPage.PrevVisitors
-		if changed > 0 {
+		if changed > 0 && changed != savedPage.Visitors {
 			m := make(map[string]interface{})
 			m["path"] = savedPage.Path
 			m["changed"] = changed
