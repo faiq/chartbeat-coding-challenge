@@ -2,7 +2,6 @@ package request
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -31,7 +30,6 @@ func MakeRequest(url string, updates chan<- Page) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%v\n", pageInfo)
 		updates <- pageInfo
 	}
 	// read closing bracket
