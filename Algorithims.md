@@ -33,15 +33,16 @@ The top 10 method also has an O(n) time to run through all the keys in the map, 
 			if min is None:
 				min = num
 				top10.append(min)
-			elif num < min and len(top_10) < 10:
+				continue
+			if num < min and len(top_10) < 10:
 				min = num
 				top10.append(min)
-			elif num < min and len(top_10) == 10:
+				continue
+			if num < min and len(top_10) == 10:
 				top10.pop(min)
 				min = num
 				top10.append(min)
-
-			
+				continue
 		return top_10	
 	}
 ```
