@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/codegangsta/negroni"
 	"github.com/faiq/chartbeat-coding-challenge/request"
-	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/mux"
 )
 
@@ -16,7 +16,16 @@ const (
 	baseUrl      = "http://api.chartbeat.com/live/toppages/?apikey=317a25eccba186e0f6b558f45214c0e7" //"Base Url" that we will make requests to chartbeat from
 )
 
-var pool = newPool()
+var state = make(map[string][]*PagePlus) // state will keep a mapping of hosts to corresponding pageplus structs
+var mutex = &sync.Mutex{}                //keeps state in check between threads
+
+//Page Plus is a struct that holds the same data along with a field that holds previous Visitors
+type PagePlus struct {
+	I            string `json:"i"`
+	Path         string `json:"path"`
+	Visitors     int    `json:"visitors"`
+	PrevVisitors int
+}
 
 func MainHandler(w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Query().Get("host")
@@ -24,13 +33,8 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		for {
 			select {
-			case page, chanClosed := <-updates:
-				if !(chanClosed) {
-					fmt.Printf("Channel Closed")
-				} else {
-					fmt.Printf("this is page %v", page)
-					HandlePage(page)
-				}
+			case page := <-updates:
+				HandlePage(page, host)
 			}
 		}
 	}()
@@ -57,38 +61,25 @@ func Poll(host string) chan request.Page {
 	return updates
 }
 
-// handle page will take an incoming page struct and do some processing on it
-func HandlePage(page request.Page) {
-	c := pool.Get()
-	defer c.Close()
-	str := page.Path
-	prevNum, err := redis.Int(c.Do("GET", str))
-	fmt.Printf("this is prevNum %d \n", prevNum)
-	if err != nil && err != redis.ErrNil {
-		fmt.Printf("Redis is throwing an error getting this key %s and this is the err %v", str, err)
+// handle page will take an incoming page struct and atomically save it to our global map
+func HandlePage(page request.Page, host string) {
+	mutex.Lock()
+	if state[host] == nil {
+		state[host] = append(state[host], &PagePlus{page.I, page.Path, page.Visitors, 0})
 	}
-	if prevNum < page.Visitors {
-		diff := page.Visitors - prevNum
-		_, err := c.Do("SET", str, diff)
-		if err != nil {
-			fmt.Printf("Error writing to Redis %v \n", err)
+	newPath := true // flag to determine whether or not to add a new member to the slice
+	// loop over the saved paths in our state object
+	for savedPage := range state[host] {
+		if savedPage.Path == page.Path {
+			newPath = false
+			savedPage.PrevVisitors = savedPage.Visitors
+			savedPage.Visitors = page.Visitors
 		}
 	}
-}
-
-func newPool() *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:   80,
-		MaxActive: 12000, // max number of connections
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", ":6379")
-			if err != nil {
-				panic(err.Error())
-			}
-			return c, err
-		},
+	if newPath == true {
+		state[host] = append(state[host], &PagePlus{page.I, page.Path, page.Visitors, 0})
 	}
-
+	mutex.Unlock()
 }
 
 func main() {
