@@ -8,6 +8,7 @@ the top pages for a domain is guaranteed to return within 100 milliseconds.
 
 ## My Approach
 In order to tackle this problem, I broke down to several parts:
+
 1. A function that makes requests to the chartbeat API
 2. A routine that takes data from the chartbeat API and saves them for later processing
 3. A webserver with a route that takes a parameter `host` and determines whether or not to start polling that host from the chartbeat API
@@ -29,10 +30,10 @@ The `state` object looks like this
 	{
 		"gizmodo":[
 			{ 
-				I: "something cool",	
-				Path: "/cool-article-or-something",
-				Visitors: 1,
-				PrevVisitors: 0
+				"I": "something cool",	
+				"Path": "/cool-article-or-something",
+				"Visitors": 1,
+				"PrevVisitors": 0
 			}
 		]
 ```
