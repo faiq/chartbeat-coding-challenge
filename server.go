@@ -30,20 +30,46 @@ type PagePlus struct {
 
 func MainHandler(w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Query().Get("host")
-	updates := Poll(host)
-	go func() {
-		for {
-			select {
-			case page := <-updates:
-				HandlePage(page, host)
+	mutex.Lock()
+	var pagesForHost = state[host]
+	mutex.Unlock()
+	// check to see if we already have go routines that are running for this host
+	if pagesForHost == nil {
+		updates := Poll(host)
+		go func() {
+			for {
+				select {
+				case page := <-updates:
+					HandlePage(page, host)
+				}
 			}
-		}
-	}()
-	outgoingJSON, err := json.Marshal(state)
+		}()
+	}
+	outgoingJSON, err := TransformState(host)
 	if err != nil {
-		w.Write([]byte("Gorilla!\n"))
+		w.WriteHeader(500)
+		w.Write([]byte("uh oh something broke"))
 	}
 	w.Write(outgoingJSON)
+}
+
+func TransformState(host string) ([]byte, error) {
+	mutex.Lock()
+	var pagesForHost = state[host]
+	mutex.Unlock()
+	returnForHost := make([]interface{}, 0) // state will keep a mapping of hosts to corresponding pageplus structs
+	for _, savedPage := range pagesForHost {
+		changed := savedPage.Visitors - savedPage.PrevVisitors
+		if changed > 0 {
+			m := make(map[string]interface{})
+			m["path"] = savedPage.Path
+			m["changed"] = changed
+			returnForHost = append(returnForHost, m)
+		}
+	}
+	fmt.Printf("%v", returnForHost)
+	outgoingJSON, err := json.Marshal(returnForHost)
+	return outgoingJSON, err
 }
 
 // Poll will create a new channel for processing on a given host name every Interval seconds
