@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/codegangsta/negroni"
+	"github.com/faiq/chartbeat-coding-challenge/Godeps/_workspace/src/github.com/codegangsta/negroni"
+	"github.com/faiq/chartbeat-coding-challenge/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/faiq/chartbeat-coding-challenge/request"
-	"github.com/gorilla/mux"
 )
 
 const (
